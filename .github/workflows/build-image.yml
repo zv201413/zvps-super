@@ -9,23 +9,26 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write  # 关键：赋予写入镜像库的权限
+      packages: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }} # 自动生成，无需手动设置
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          # 镜像名称会变成 ghcr.io/你的用户名/仓库名:latest
-          tags: ghcr.io/${{ github.repository_owner }}/vps-super:latest
+          # 建议镜像名也改成 zvps，保持一致
+          tags: ghcr.io/${{ github.repository_owner }}/zvps:latest
+
+      # --- 下面是可选的“自动通知更新”步骤 (如果你配置了 CF_API) ---
+      # 如果你不想手动 restage，可以研究添加 CF CLI 的 Action
