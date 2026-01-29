@@ -1,33 +1,23 @@
 #!/bin/bash
 set -e
 
-# 1. 强制覆盖 SSH 关键配置
-sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin yes/g' /etc/ssh/sshd_config
+# 1. SSH 授权优化：针对普通用户登录做最简授权
+# 确保允许密码登录
 sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication yes/g' /etc/ssh/sshd_config
+# 针对部分环境，关闭空密码限制和强行开启授权
+sed -i 's/^#\?ChallengeResponseAuthentication.*/ChallengeResponseAuthentication no/g' /etc/ssh/sshd_config
 sed -i 's/^#\?UsePAM.*/UsePAM no/g' /etc/ssh/sshd_config
 
-# 2. 动态创建用户
+# 2. 账户处理
 if ! id -u "${USER}" >/dev/null 2>&1; then
     useradd -m -s /bin/bash "${USER}"
 fi
-
-# 3. 密码与免密 sudo 配置
 echo "${USER}:${PWD}" | chpasswd
-echo "root:${PWD}" | chpasswd
 echo "${USER} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/90-custom-user
 
-# 4. 自动注入 sctl 别名
-for HOME_DIR in "/root" "/home/${USER}"; do
-    if [ -d "$HOME_DIR" ]; then
-        sed -i '/alias sctl=/d' "$HOME_DIR/.bashrc"
-        echo "alias sctl='sudo supervisorctl'" >> "$HOME_DIR/.bashrc"
-    fi
-done
-chown -R "${USER}:${USER}" "/home/${USER}" 2>/dev/null || true
+# 3. 环境变量注入：让 USER 在 SSH 登录后也能直接用 sctl
+echo "alias sctl='sudo supervisorctl'" >> /home/${USER}/.bashrc
+chown -R "${USER}:${USER}" /home/${USER}
 
-# 5. 时区设置
-ln -snf /usr/share/zoneinfo/$TZ /etc/localtime
-echo $TZ > /etc/timezone
-
-# 6. 启动主进程
+# 4. 启动
 exec /usr/bin/supervisord -n -c /etc/supervisord.conf
