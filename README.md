@@ -49,3 +49,4 @@ autorestart=true
 1、本镜像集成ttyd，所以当你使用的平台不支持ssh或者你习惯用ttyd，请添加http类型的网络端口为7681的外部可访问链接，生成后点击登录即可<img width="1119" height="273" alt="image" src="https://github.com/user-attachments/assets/f17318c0-7965-489e-91f2-9a6bb82d70e3" />
 2、注意执行步骤，最初一定不要挂载永久化存储位置和设置SSH_CMD
 
+鸣谢：vevc大佬项目的思路@(https://github.com/vevc/ubuntu)
