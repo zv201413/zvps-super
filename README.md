@@ -1,6 +1,6 @@
-# 🚀 ZVPS-Super 基地镜像
+# 🚀 ZVPS-Super 基础镜像
 
-基于 Ubuntu 的通用型容器基地。支持通过环境变量动态接管启动进程，结合 Supervisor 实现多服务保活与持久化存储。
+基于 Ubuntu 的通用型容器基础镜像。支持通过环境变量动态接管启动进程，结合 Supervisor 实现多服务保活与持久化存储。
 
 ---
 
@@ -50,7 +50,7 @@ autostart=true
 autorestart=true
 ```
 
-### 步骤 4：启用基地模式
+### 步骤 4：启用基础模式
 
 挂载存储：将持久化卷挂载到 /home/zv/boot。
 
@@ -65,10 +65,10 @@ autorestart=true
 
 重启容器：完成最后部署。
 
-💡 写在最后
+### 💡 写在最后
 Web 终端支持：本镜像集成 ttyd。当你使用的平台不支持 SSH 或者你习惯用 Web 登录，请添加 HTTP 类型的网络端口为 7681 的外部可访问链接，生成后点击链接即可登录。 <img width="1119" height="273" alt="image" src="https://github.com/user-attachments/assets/f17318c0-7965-489e-91f2-9a6bb82d70e3" />
 
 用户名适配：以上流程演示中使用了默认的 zv 用户名，请根据你个人在环境变量中设置的 SSH_USER 进行相应路径修改。
 
-🤝 鸣谢
-本项目参考了 vevc/ubuntu 大佬的设计思路，并针对持久化、supervisor启动与快捷操作、ttyd集成等场景进行了优化与补充。
+### 🤝 鸣谢
+本项目参考了 vevc/ubuntu 大佬的设计思路，并针对本地数据持久化、supervisor启动与快捷操作、ttyd集成等场景进行了优化与补充。
