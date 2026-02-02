@@ -1,64 +1,73 @@
-# zvps-super README
+# 🚀 ZVPS-Super 基地镜像
 
-拉取镜像后的操作流程
-如果你现在刚拉取镜像，流程如下：
+基于 Ubuntu 的通用型容器基地。支持通过环境变量动态接管启动进程，结合 Supervisor 实现多服务保活与持久化存储。
 
-## 步骤 1：初次启动（默认模式）
+---
 
-仅设置环境变量：
+## 🛠️ 拉取镜像后的操作流程
 
-SSH_USER: 你的用户名
+> [!IMPORTANT]
+> **注意执行步骤：** 最初一定不要挂载永久化存储位置，也请勿设置 `SSH_CMD`。
 
-SSH_PWD: 你的密码
+### 步骤 1：初次启动（默认模式）
 
-不设置 SSH_CMD，不挂载存储。
-<img width="1141" height="467" alt="image" src="https://github.com/user-attachments/assets/d1602ddb-252e-4e56-bef2-e8e6e957a362" />
+如果你现在刚拉取镜像，请先在平台（Zeabur / Railway 等）仅设置基础环境变量：
 
+* **SSH_USER**: 你的用户名
+* **SSH_PWD**: 你的密码
 
+---
 
-## 步骤 2：准备持久化“大脑”
+### 步骤 2：准备持久化“大脑”
 
-通过 SSH 连入容器（一般平台自带，如果不自带web端ssh请看到最后），手动创建 boot 目录：
+通过平台自带的 Web 终端连入容器，手动创建 `boot` 目录：
 
-Bash
+```bash
 mkdir -p /home/zv/boot
-
-将系统默认的 Supervisor 配置拷贝出来作为模板：
+随后将系统默认的 Supervisor 配置拷贝出来作为模板（或者直接参考步骤 3 手动创建）：
 
 Bash
 sudo cp /etc/supervisor/supervisord.conf /home/zv/boot/supervisord.conf
-或者手动创建一个最简的配置，内容如下面步骤 3
+```
 
-## 步骤 3：配置持久化文件
+### 步骤 3：配置持久化文件
 
 编辑 /home/zv/boot/supervisord.conf，确保包含基础服务：
 
-Ini, TOML
+```Ini, TOML
 [supervisord]
 nodaemon=true
 user=root
 
 [program:sshd]
 command=/usr/sbin/sshd -D
+autostart=true
 autorestart=true
 
 [program:ttyd]
 command=/usr/local/bin/ttyd -W bash
+autostart=true
 autorestart=true
+```
 
-## 步骤 4：挂载存储：将持久化卷挂载到 /home/zv/boot。
+### 步骤 4：启用基地模式
 
-设置变量：添加 SSH_CMD = /usr/bin/supervisord -n -c /home/zv/boot/supervisord.conf。
+挂载存储：将持久化卷挂载到 /home/zv/boot。
+
+设置启动变量：添加环境变量 ```SSH_CMD = /usr/bin/supervisord -n -c /home/zv/boot/supervisord.conf。```
+
 <img width="1143" height="564" alt="image" src="https://github.com/user-attachments/assets/1bc77532-93f6-4f81-b8e1-f268004cd485" />
 
-或者如果平台支持且你想用 Arguments，填 ["supervisord", "-n", "-c", "/home/zv/boot/supervisord.conf"]
+[!TIP] 如果平台支持且你想用 Arguments，可填写：``` ["supervisord", "-n", "-c", "/home/zv/boot/supervisord.conf"]```
+
 <img width="606" height="227" alt="image" src="https://github.com/user-attachments/assets/3c1f054e-2aa4-415e-9baa-398ff893e911" />
 
-重启容器
+重启容器：完成最后部署。
 
-# 写在最后
-1、本镜像集成ttyd，所以当你使用的平台不支持ssh或者你习惯用ttyd，请添加http类型的网络端口为7681的外部可访问链接，生成后点击登录即可<img width="1119" height="273" alt="image" src="https://github.com/user-attachments/assets/f17318c0-7965-489e-91f2-9a6bb82d70e3" />
-2、注意执行步骤，最初一定不要挂载永久化存储位置和设置SSH_CMD
-3、以上流程演示中使用了默认的”zv“用户名，请根据个人设置进行相应修改
+💡 写在最后
+Web 终端支持：本镜像集成 ttyd。当你使用的平台不支持 SSH 或者你习惯用 Web 登录，请添加 HTTP 类型的网络端口为 7681 的外部可访问链接，生成后点击链接即可登录。 <img width="1119" height="273" alt="image" src="https://github.com/user-attachments/assets/f17318c0-7965-489e-91f2-9a6bb82d70e3" />
 
-## 鸣谢：vevc大佬项目的思路@(https://github.com/vevc/ubuntu)
+用户名适配：以上流程演示中使用了默认的 zv 用户名，请根据你个人在环境变量中设置的 SSH_USER 进行相应路径修改。
+
+🤝 鸣谢
+本项目参考了 vevc/ubuntu 大佬的设计思路，并针对持久化、supervisor启动与快捷操作、ttyd集成等场景进行了优化与补充。
