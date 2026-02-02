@@ -58,7 +58,8 @@ autorestart=true
 
 <img width="1143" height="564" alt="image" src="https://github.com/user-attachments/assets/1bc77532-93f6-4f81-b8e1-f268004cd485" />
 
-[!TIP] 如果平台支持且你想用 Arguments，可填写：``` ["supervisord", "-n", "-c", "/home/zv/boot/supervisord.conf"]```
+> [!TIP]
+> 如果平台支持且你想用 Arguments，可填写：``` ["supervisord", "-n", "-c", "/home/zv/boot/supervisord.conf"]```
 
 <img width="606" height="227" alt="image" src="https://github.com/user-attachments/assets/3c1f054e-2aa4-415e-9baa-398ff893e911" />
 
