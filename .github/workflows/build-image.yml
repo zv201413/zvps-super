@@ -1,9 +1,9 @@
-
 name: Build and Push to GHCR
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -16,12 +16,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1. 自动生成版本号
       - name: Set Image Tag
         id: vars
-        run: |
-          # 生成格式：年月日-短哈希 (例如 20260201-7b3a4e2)
-          echo "tag=$(date +'%Y%m%d')-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+        run: echo "tag=$(date +'%Y%m%d')-${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -34,12 +32,11 @@ jobs:
         with:
           context: .
           push: true
-          # 动态标签：同时推送到最新版和具体的版本号
           tags: |
             ghcr.io/${{ github.repository_owner }}/zvps:latest
             ghcr.io/${{ github.repository_owner }}/zvps:${{ steps.vars.outputs.tag }}
-      # 2. 在控制台打印出来，方便复制版本号
+
       - name: Image info
         run: |
-          echo "镜像构建完成！"
+          echo "🎉 镜像构建完成！"
           echo "版本标签为: ${{ steps.vars.outputs.tag }}"
