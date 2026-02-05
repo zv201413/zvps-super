@@ -1,6 +1,6 @@
 FROM ubuntu:22.04
 
-# 1. 基础环境设置
+# 1. 基础环境设置 (保持默认值 zv/105106)
 ENV DEBIAN_FRONTEND=noninteractive \
     TZ=Asia/Shanghai \
     SSH_USER=zv \
@@ -24,22 +24,21 @@ RUN mkdir -p /run/sshd && ssh-keygen -A \
     && sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
 
-# 5. 配置文件与脚本处理 (关键修复区)
-# 创建模板存放目录
+# 5. 配置文件与脚本处理
 RUN mkdir -p /usr/local/etc
 
-# 直接从仓库拷贝配置文件，彻底避开 echo 导致的 exit code 2 报错
+# 拷贝包含 {SSH_USER} 占位符的配置文件
 COPY supervisord.conf /usr/local/etc/supervisord.conf.template
 
-# 处理启动脚本
+# 拷贝动态处理逻辑的启动脚本
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-# 移除系统默认配置以防冲突
+# 移除系统默认配置，确保只走持久化卷里的配置
 RUN rm -f /etc/supervisor/supervisord.conf
 
-# 6. 运行身份设置
-# 必须以 root 启动以处理 Zeabur 挂载存储后的 chown 权限问题
+# 6. 运行身份
 USER root
 
+# 执行 entrypoint.sh 进行动态替换和权限修正
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
