@@ -1,44 +1,52 @@
 #!/usr/bin/env sh
 set -e
 
-# 1. 初始化用户与强行修正挂载目录权限
-if ! id -u "$SSH_USER" >/dev/null 2>&1; then
-    useradd -m -s /bin/bash "$SSH_USER" || true
+# --- 1. 设置默认值 (如果环境变量没给，就用 zv/105106) ---
+USER_NAME=${SSH_USER:-zv}
+USER_PWD=${SSH_PWD:-105106}
+
+echo "👤 当前用户: $USER_NAME"
+
+# --- 2. 动态创建用户 ---
+if ! id -u "$USER_NAME" >/dev/null 2>&1; then
+    useradd -m -s /bin/bash "$USER_NAME" || true
 fi
 
-# 核心：无论存储卷以前是谁的，进来先夺取所有权
-echo "正在修正 /home/$SSH_USER 权限..."
-chown -R "$SSH_USER":"$SSH_USER" /home/"$SSH_USER"
+# 修正家目录权限
+chown -R "$USER_NAME":"$USER_NAME" /home/"$USER_NAME"
 
-# 密码与 sudo 权限
-echo "root:$SSH_PWD" | chpasswd
-echo "$SSH_USER:$SSH_PWD" | chpasswd
-echo "$SSH_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/init-users
+# 设置密码与 sudo 权限
+echo "root:$USER_PWD" | chpasswd
+echo "$USER_NAME:$USER_PWD" | chpasswd
+echo "$USER_NAME ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/init-users
 ln -sf /usr/bin/supervisorctl /usr/local/bin/sctl
 
-# 2. 持久化同步逻辑
-BOOT_DIR="/home/$SSH_USER/boot"
+# --- 3. 处理持久化配置 ---
+BOOT_DIR="/home/$USER_NAME/boot"
 BOOT_CONF="$BOOT_DIR/supervisord.conf"
 TEMPLATE="/usr/local/etc/supervisord.conf.template"
 
 mkdir -p "$BOOT_DIR"
 
-# 只有当存储卷里没有配置时，才从镜像模板同步
-if [ ! -f "$BOOT_CONF" ]; then
-    echo "📦 存储卷为空，正在初始化出厂配置..."
+# 如果文件不存在，或者开启了强制更新
+if [ ! -f "$BOOT_CONF" ] || [ "$FORCE_UPDATE" = "true" ]; then
+    echo "📦 正在初始化/更新持久化配置模板..."
     cp "$TEMPLATE" "$BOOT_CONF"
-    chown "$SSH_USER":"$SSH_USER" "$BOOT_CONF"
+    
+    # 【动态注入】将配置文件里的占位符替换为实际的用户名
+    sed -i "s/{SSH_USER}/$USER_NAME/g" "$BOOT_CONF"
+    
+    chown "$USER_NAME":"$USER_NAME" "$BOOT_CONF"
 fi
 
-# 3. 确定最终配置文件并清理 PID
-FINAL_CONF="$BOOT_CONF"
-rm -f /var/run/supervisord.pid /var/run/supervisor.sock /tmp/supervisor.sock
+# 设置 sctl 命令别名，让它自动找对配置文件
+echo "alias sctl='supervisorctl -c $BOOT_CONF'" >> /etc/bash.bashrc
 
-# 4. 启动逻辑
+# --- 4. 启动 ---
 if [ -n "$SSH_CMD" ]; then
-    echo "🚀 执行 SSH_CMD: $SSH_CMD"
+    echo "🚀 执行自定义 SSH_CMD: $SSH_CMD"
     exec /bin/sh -c "$SSH_CMD"
 else
-    echo "✅ 按照持久化配置启动 Supervisor..."
-    exec /usr/bin/supervisord -n -c "$FINAL_CONF"
+    echo "✅ 启动 Supervisor (用户: $USER_NAME)..."
+    exec /usr/bin/supervisord -n -c "$BOOT_CONF"
 fi
