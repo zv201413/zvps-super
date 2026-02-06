@@ -66,9 +66,9 @@
 
 ## 💡 流程总结
 
-填变量：SSH_PWD、CF_TOKEN。
+填变量：SSH_USER、SSH_PWD、CF_TOKEN。
 
-挂存储：添加 Storage 挂载到 /home/zv（默认zv，可自定义）/boot。
+挂存储：添加 Storage 挂载到 /home/zv（默认zv，可自定义需要与SSH_USER一致）/boot。
 
 点部署：一般不用管 SSH_CMD，除非你需要自定义启动。
 
