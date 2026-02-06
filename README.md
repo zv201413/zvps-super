@@ -82,25 +82,21 @@
     5.  **Policies**: 名字随便填，**Selector** 选择 `Emails`，并在 **Value** 中填入你的接收验证码的邮箱。
     6.  保存后，只有通过邮箱验证的人才能拨通此 SSH 隧道。
 
-### 2. 万能 SSH 登录指令
+### 2. 万能 SSH 登录指令 (最简 CMD 模式)
 
-打开本地终端（PowerShell/CMD）输入以下命令：
-
-```powershell
-ssh -o ProxyCommand="cloudflared access ssh --hostname 你的域名" SSH_USER@你的域名
+ ```cmd
+start /b cloudflared-windows-amd64.exe access tcp --hostname 你的域名 --url localhost:2222 & ssh -p 2222 root@127.0.0.1
 ```
-> [!WARNING]
-> **注意：** 登录成功后，**请勿关闭该终端窗口**。如果窗口关闭，通过该窗口建立的 SSH 隧道连接会立即断开。
 
 ### 3. (可选) 第三方工具登录 (以 WindTerm 为例)
 
 如果你已经在 CMD 窗口通过上述指令登录并保持窗口开启，WindTerm等第三方终端 可以直接通过本地转发端口登录，无需再配置复杂的插件代理：
 
 1. **新建会话**: 
-   - **主机名**: 填入 `127.0.0.1` (由于 CMD 窗口已打通隧道，直接连本地即可)。
-   - **端口**: 填入 `22` (或者你在 ssh -L 中指定的本地映射端口)。
-   - **用户名**: 填入 `root`。
-   - **密码**: 填入 `105106`。
+   - **主机名**: 填入 `127.0.0.1` (由于隧道已将远程服务映射到本地，直接连本地 IP 即可)。
+   - **端口**: 填入 `2222` (即你在命令 `start /b cloudflared-windows-amd64.exe access tcp --hostname 你的域名 --url localhost:2222` 中指定的本地映射端口)。
+   - **用户名**: 填入 `root` (注意：建议先以 root 身份登录)。
+   - **密码**: 填入 `105106` (或你自定义的密码)。
 
 2. **用户切换技巧**:
    - 进入终端后，输入 `su zv` 切换用户；按 `Ctrl + D` 退出并恢复 root。
