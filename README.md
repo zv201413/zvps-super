@@ -82,11 +82,26 @@
     5.  **Policies**: 名字随便填，**Selector** 选择 `Emails`，并在 **Value** 中填入你的接收验证码的邮箱。
     6.  保存后，只有通过邮箱验证的人才能拨通此 SSH 隧道。
 
-### 2. 万能 SSH 登录指令 (在 CMD/power 输入以下指令后以实现ssh，如果第三方工具登录请最小化窗口)
+### 2. 万能 SSH 登录指令
 
- ```cmd
-start /b cloudflared-windows-amd64.exe access tcp --hostname 你的域名 --url localhost:2222 & ssh -p 2222 root@127.0.0.1
+为了通过 Cloudflare 隧道连接 SSH，请在本地电脑的 **CMD** 或 **PowerShell** 中执行以下步骤：
+
+#### 第一步：定位 cloudflared 目录
+首先，你需要进入 `cloudflared.exe` 所在的文件夹（例如你下载到了 `C:\tools`）：
+```dos
+:: 切换到 cloudflared 所在的目录 (请根据你的实际路径修改)
+如 cd /d "C:\tools\cloudflared"
 ```
+#### 第二步：启动隧道并连接
+执行以下整合指令（建议将 `2222` 修改为你喜欢的空闲端口）：
+
+```dos
+:: 1. 使用 start /b 在后台静默启动隧道 (不弹窗)
+:: 2. 随后自动发起 ssh 连接 (请确保已安装 ssh 客户端)
+
+start /b cloudflared.exe access tcp --hostname 你的cf隧道域名 --url localhost:2222 & ssh -p 2222 root@127.0.0.1
+```
+
 #### 📌2.1 登录信息详解
 如果你使用第三方 SSH 工具（如 **PuTTY**, **Xshell**, **FinalShell** 或 **Termius**）进行连接，请参考以下配置表：
 
@@ -109,9 +124,8 @@ start /b cloudflared-windows-amd64.exe access tcp --hostname 你的域名 --url 
 
 ## 🏁 流程总结
 
-- **填变量**：在平台面板设置 `SSH_USER`、`SSH_PWD`、`CF_TOKEN`（自定义或保持默认）。
-- **挂存储**：添加 Storage 挂载到 `/home/zv/boot`。
-- **点部署**：一般不用管 `SSH_CMD` 变量，除非你需要完全自定义启动指令。
+- **填变量**：在平台面板设置 `SSH_USER`、`SSH_PWD`、`CF_TOKEN`。
+- **挂存储**：添加 `Storage` 挂载到 `/home/zv`（配置会自动生成在 `/home/zv/boot`）。
 - **进终端**：部署成功后，`/home/zv/boot/supervisord.conf` 已经自动生成，`sctl` 已接管并运行所有后台服务。
 ---
 
