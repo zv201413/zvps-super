@@ -101,6 +101,11 @@
 
 start /b cloudflared.exe access tcp --hostname 你的cf隧道域名 --url localhost:2222 & ssh -p 2222 root@127.0.0.1
 ```
+##### 💡 正常运行反馈参考
+> [!NOTE]
+> 当你第一次连接时，终端会出现类似下方的提示，请按步骤操作：
+> 1. **确认指纹**：看到 `Are you sure you want to continue...` 时，直接手动输入 **`yes`** 并回车。
+> 2. **输入密码**：看到 `password:` 时，输入你在环境变量 `SSH_PWD` 中设置的密码（**注意：输入时字符是完全不显示的，输完直接按回车即可**）。
 
 #### 📌2.1 登录信息详解
 如果你使用第三方 SSH 工具（如 **PuTTY**, **Xshell**, **FinalShell** 或 **Termius**）进行连接，请参考以下配置表：
