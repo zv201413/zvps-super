@@ -3,8 +3,61 @@
 基于 **Ubuntu** 的智能型容器基础镜像。支持通过环境变量动态接管启动进程，结合 **Supervisor** 实现多服务保活、**全自动配置初始化**与持久化存储。
 
 ---
+## 🐳 Docker 方式部署指南
 
-## 🛠️ 拉取镜像后的操作流程
+你可以通过 Docker 快速部署并运行 **ZVPS-Super**。根据你的实际需求选择以下启动方式。
+
+### 1. ⚡ 极简启动 (仅 SSH + Web 终端)
+适用于快速测试，不保存数据，容器销毁后配置丢失。
+
+```bash
+docker run -d \
+  --name zvps-super \
+  -e SSH_PWD="your_password" \
+  -p 2222:22 \
+  -p 7681:7681 \
+  zv201413/zvps-super
+```
+### 2. 🚀 全功能启动 (持久化 + 监控 + 隧道)
+
+**推荐方案**：适用于生产或长期使用环境。此配置支持流量统计数据的持久化存储，并通过 Cloudflare Tunnel 实现内网穿透。
+
+```bash
+docker run -d \
+  --name zvps-super \
+  -e SSH_USER="root" \
+  -e SSH_PWD="your_password" \
+  -e GB=true \
+  -e CF_TOKEN="your_cloudflare_token" \
+  -v /opt/zvps_data:/root \
+  -p 2222:22 \
+  -p 7681:7681 \
+  --restart unless-stopped \
+  zv201413/zvps-super
+```
+### 📝 参数详解 (Configuration)
+
+| 变量/参数 | 示例值 | 类型 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `-e SSH_PWD` | `yourpassword` | **必填** | 设置 SSH 远程登录密码 |
+| `-e SSH_USER` | `root` | 选填 | 默认为 `root`。若修改，请务必同步修改挂载路径 |
+| `-e GB` | `true` | 选填 | 是否开启流量监控。开启后可使用 `gb` 指令 |
+| `-e CF_TOKEN` | `your_token` | 选填 | 填入后自动开启 Cloudflare Tunnel 远程访问 |
+| `-e SSH_CMD` | `""` | 选填 | **留空**：启动 Supervisor 服务管理；**填入**：替代所有服务只执行该命令 |
+| `-v /host:/root` | `/data:/root` | **关键** | **宿主机路径 : 容器家目录**。用于持久化保存配置和流量数据 |
+| `-p 2222:22` | `2222:22` | 端口 | SSH 访问端口 (宿主机端口:容器内22端口) |
+| `-p 7681:7681` | `7681:7681` | 端口 | Web SSH 浏览器访问端口 (可通过浏览器直接操作终端) |
+
+---
+
+> [!TIP]
+> **关于 SSH_CMD 的特别说明：**
+> 如果你需要容器作为一个单纯的执行环境（例如只运行一个爬虫脚本或临时任务），可以填入命令。否则请保持留空，以确保 SSH 和 Web UI 等后台服务正常启动。
+
+
+
+
+## 🛠️ 各种容器平台部署指南
 
 > [!IMPORTANT]
 > **核心原则：** 容器启动时会根据环境变量自动生成配置。请确保在首次部署前完成以下设置。
@@ -12,7 +65,7 @@
 ### 步骤 1：一站式环境配置
 
 #### 1. 设置环境变量
-在平台部署面板（如 Zeabur Environment Variables）添加：
+在平台部署时，填写镜像地址后添加环境变量（如 Zeabur Environment Variables）：
 
 | 变量名 | 示例值 | 说明 |
 | :--- | :--- | :--- |
