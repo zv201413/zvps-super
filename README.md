@@ -62,11 +62,11 @@ docker run -d \
 
 | 变量名 | 示例值 | 说明 |
 | :--- | :--- | :--- |
-| **SSH_USER** | 默认`zv` | **建议设为 root（此时永久化目录建议设为root）** 以获得最高权限和完整功能 |
-| **SSH_PWD** | `yourpassword` | SSH 登录密码 |
+| **SSH_USER** | 默认`zv`也可设为`root`或自定义 | 任何用户名已默认获得最高权限和完整功能 |
+| **SSH_PWD** | 默认`105106` | SSH 登录密码 |
 | **GB** | `true` | (可选) 开启后自动安装 vnstat，查看使用流量 |
 | **CF_TOKEN** | `your_token` | (可选) 填入则自动激活 Cloudflared 隧道 |
-| **SSH_CMD** | `""` | **留空**：启动 Supervisor 管理；**填入**：则只执行该命令并替代管理服务 |
+| **SSH_CMD** | `""` | **留空**：启动 Supervisor 管理；**填入**：则只执行该命令并替代管理服务，此时Supervisor.conf自动失效 |
 
 > [!TIP]
 > **Cloudflare 配置关键点：**
