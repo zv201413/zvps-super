@@ -25,11 +25,11 @@ docker run -d \
 ```bash
 docker run -d \
   --name zvps-super \
-  -e SSH_USER="root" \
+  -e SSH_USER="zv" \
   -e SSH_PWD="your_password" \
   -e GB=true \
   -e CF_TOKEN="your_cloudflare_token" \
-  -v /opt/zvps_data:/root \
+  -v /opt/zvps_data:/home/zv \
   -p 2222:22 \
   -p 7681:7681 \
   --restart unless-stopped \
@@ -40,11 +40,11 @@ docker run -d \
 | 变量/参数 | 示例值 | 类型 | 说明 |
 | :--- | :--- | :--- | :--- |
 | `-e SSH_PWD` | `yourpassword` | **必填** | 设置 SSH 远程登录密码 |
-| `-e SSH_USER` | `root` | 选填 | 默认为 `root`。若修改，请务必同步修改挂载路径 |
+| `-e SSH_USER` | `zv` | 选填 | 默认为 `zv`。若修改，请务必同步修改挂载路径 |
 | `-e GB` | `true` | 选填 | 是否开启流量监控。开启后可使用 `gb` 指令 |
 | `-e CF_TOKEN` | `your_token` | 选填 | 填入后自动开启 Cloudflare Tunnel 远程访问 |
 | `-e SSH_CMD` | `""` | 选填 | **留空**：启动 Supervisor 服务管理；**填入**：替代所有服务只执行该命令 |
-| `-v /host:/root` | `/data:/root` | **关键** | **宿主机路径 : 容器家目录**。用于持久化保存配置和流量数据 |
+| `-v /host:/root` | `/data:/home/zv` | **关键** | **宿主机路径 : 容器家目录**。用于持久化保存配置和流量数据 |
 | `-p 2222:22` | `2222:22` | 端口 | SSH 访问端口 (宿主机端口:容器内22端口) |
 | `-p 7681:7681` | `7681:7681` | 端口 | Web SSH 浏览器访问端口 (可通过浏览器直接操作终端) |
 
@@ -62,7 +62,7 @@ docker run -d \
 
 | 变量名 | 示例值 | 说明 |
 | :--- | :--- | :--- |
-| **SSH_USER** | 默认`zv`也可设为`root`或自定义 | 任何用户名已默认获得最高权限和完整功能 |
+| **SSH_USER** | 默认`zv`或自定义 | 任何用户名已默认获得最高权限和完整功能 |
 | **SSH_PWD** | 默认`105106` | SSH 登录密码 |
 | **GB** | `true` | (可选) 开启后自动安装 vnstat，查看使用流量 |
 | **CF_TOKEN** | `your_token` | (可选) 填入则自动激活 Cloudflared 隧道 |
@@ -143,7 +143,7 @@ start /b cloudflared.exe access tcp --hostname 你的域名 --url localhost:2222
 | :-------------- | :----------------- | :--------------------------------------- |
 | **主机 (Host/IP)** | `127.0.0.1`        | **核心**：不要填你的域名，要填本地回环地址 |
 | **端口 (Port)** | `2222`             | 必须与你启动隧道指令中的端口一致         |
-| **用户名 (User)** | `root`             | 或你在环境变量 SSH_USER 中设置的名字，但不会有root权限     |
+| **用户名 (User)** | `zv`             | 在环境变量 SSH_USER 中设置的名字    |
 | **验证方式** | `密码 (Password)`  | 选择密码登录                             |
 | **密码** | `你的 SSH_PWD`     | 你在环境变量中设置的密码                 |
 
