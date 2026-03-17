@@ -36,7 +36,7 @@ jobs:
           push: true
           # 动态标签：同时推送到最新版和具体的版本号
           tags: |
-            ghcr.io/${{ github.repository_owner }}/zvps:latest
+            ghcr.io/${{ github.repository_owner }}/zvps001:latest
             ghcr.io/${{ github.repository_owner }}/zvps:${{ steps.vars.outputs.tag }}
 
       # 2. 在控制台打印出来，方便复制版本号
