@@ -85,11 +85,19 @@ fi
 
 # --- 5. CF_TOKEN 判断 ---
 if [ -z "$CF_TOKEN" ]; then
-    echo "⚠️ 未发现 CF_TOKEN，禁用 Cloudflared..."
-    sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/ ' "$BOOT_CONF"
+	echo "⚠️ 未发现 CF_TOKEN，禁用 Cloudflared..."
+	sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/' "$BOOT_CONF"
 else
-    echo "☁️ 发现 CF_TOKEN，激活 Cloudflared."
-    sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^;//' "$BOOT_CONF"
+	echo "☁️ 发现 CF_TOKEN，激活 Cloudflared."
+	sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^;//' "$BOOT_CONF"
+fi
+
+# --- 5.5 处理 ttyd 动态密码 (由环境变量 TTYD 控制) ---
+if [ -n "$TTYD" ]; then
+	echo "🔐 检测到 TTYD 变量 ($TTYD)，正在开启 Web 终端密码保护..."
+	sed -i "s|/usr/local/bin/ttyd -W bash|/usr/local/bin/ttyd -c $TTYD -W bash|g" "$BOOT_CONF"
+else
+	echo "🔓 未检测到 TTYD 变量，Web 终端将保持无密码模式。"
 fi
 
 # 注入全局别名
