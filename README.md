@@ -29,6 +29,7 @@ docker run -d \
   -e SSH_PWD="your_password" \
   -e GB=true \
   -e CF_TOKEN="your_cloudflare_token" \
+  -e TTYD="admin:your_password" \
   -v /opt/zvps_data:/home/zv \
   -p 2222:22 \
   -p 7681:7681 \
@@ -43,6 +44,7 @@ docker run -d \
 | `-e SSH_USER` | `zv` | 选填 | 默认为 `zv`。若修改，请务必同步修改挂载路径 |
 | `-e GB` | `true` | 选填 | 是否开启流量监控。开启后可使用 `gb` 指令 |
 | `-e CF_TOKEN` | `your_token` | 选填 | 填入后自动开启 Cloudflare Tunnel 远程访问 |
+| `-e TTYD` | `admin:123` | 选填 | Web 终端认证 (用户名:密码)。不设置则无密码保护 |
 | `-e SSH_CMD` | `""` | 选填 | **留空**：启动 Supervisor 服务管理；**填入**：替代所有服务只执行该命令 |
 | `-v /host:/root` | `/data:/home/zv` | **关键** | **宿主机路径 : 容器家目录**。用于持久化保存配置和流量数据 |
 | `-p 2222:22` | `2222:22` | 端口 | SSH 访问端口 (宿主机端口:容器内22端口) |
@@ -66,6 +68,7 @@ docker run -d \
 | **SSH_PWD** | 默认`105106` | SSH 登录密码 |
 | **GB** | `true` | (可选) 开启后自动安装 vnstat，查看使用流量 |
 | **CF_TOKEN** | `your_token` | (可选) 填入则自动激活 Cloudflared 隧道 |
+| **TTYD** | `admin:123` | (可选) Web 终端认证凭据，格式为 `用户名:密码`。不设置则无密码保护 |
 | **SSH_CMD** | `""` | **留空**：启动 Supervisor 管理；**填入**：则只执行该命令并替代管理服务，此时Supervisor.conf自动失效 |
 
 > [!TIP]
@@ -99,8 +102,33 @@ docker run -d \
 2. **快捷管理 `sctl`**: 
    - 镜像已内置 `sctl` (即 `supervisorctl`)。输入 `sctl` 即可查看所有进程（sshd, ttyd, vnstat等）状态。
 
-3. **Web SSH 访问**: 
-   - 访问平台分配的域名（对应容器 7681 端口），即可通过浏览器进入终端，实现免客户端登录。
+3. **Web SSH 访问**:
+- 访问平台分配的域名（对应容器 7681 端口），即可通过浏览器进入终端，实现免客户端登录。
+- **安全提示**: 建议设置 `TTYD` 环境变量启用密码认证，防止未授权访问。
+
+---
+
+### 步骤 4：Web 终端安全配置
+
+默认情况下，Web 终端 (ttyd) 无密码保护。为增强安全性，可通过 `TTYD` 环境变量启用认证：
+
+| 配置方式 | 结果 |
+| :--- | :--- |
+| 不设置 TTYD | 无密码，任何人可访问 |
+| `TTYD=admin:123` | 需输入用户名 `admin` 和密码 `123` 才能访问 |
+
+**Docker 启动示例**:
+```bash
+docker run -d \
+  --name zvps-super \
+  -e SSH_PWD="your_password" \
+  -e TTYD="admin:your_password" \
+  -p 2222:22 \
+  -p 7681:7681 \
+  zv201413/zvps-super
+```
+
+访问 Web 终端时，浏览器将弹出登录框要求输入凭据。
 
 ---
 
@@ -152,7 +180,7 @@ start /b cloudflared.exe access tcp --hostname 你的域名 --url localhost:2222
 
 ## 🏁 流程总结
 
-1. **填变量**：在平台面板设置 `SSH_USER`、`SSH_PWD`、`GB`、`CF_TOKEN`。
+1. **填变量**：在平台面板设置 `SSH_USER`、`SSH_PWD`、`GB`、`CF_TOKEN`、`TTYD`。
 2. **挂存储**：根据用户选择挂载到 `/root` 或 `/home/用户名`（**关键：路径须与用户名一致**）。
 3. **收工**：部署成功后，使用 `gb` 查流量，使用 `sctl` 管进程。
 
