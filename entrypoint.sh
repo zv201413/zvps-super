@@ -62,52 +62,50 @@ EOF
     chown "$USER_NAME":"$USER_NAME" "$TARGET_HOME/init_env.sh"
 fi
 
-# --- 4. 处理持久化配置 ---
+# --- 4. 智能配置更新 ---
+TTYD_PORT=${TTYD_PORT:-7681}
+FINGERPRINT="USER:$USER_NAME|PORT:$TTYD_PORT|TOKEN:${CF_TOKEN:-none}|TTYD:${TTYD:-none}"
+
 BOOT_DIR="$TARGET_HOME/boot"
+STATE_FILE="$BOOT_DIR/.config_state"
 BOOT_CONF="$BOOT_DIR/supervisord.conf"
 TEMPLATE="/usr/local/etc/supervisord.conf.template"
 
 mkdir -p "$BOOT_DIR"
 
-# 【执行 DIY 勾子】
+OLD_FINGERPRINT=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+
 if [ -f "$TARGET_HOME/init_env.sh" ]; then
-    echo "🚀 运行后期 DIY 初始化 (init_env.sh)..."
-    # 使用 sh 执行以确保兼容性
-    sh "$TARGET_HOME/init_env.sh"
+	sh "$TARGET_HOME/init_env.sh"
 fi
 
-if [ ! -f "$BOOT_CONF" ] || [ "$FORCE_UPDATE" = "true" ]; then
-    echo "📦 正在初始化/更新持久化配置模板..."
-    cp "$TEMPLATE" "$BOOT_CONF"
-    sed -i "s/{SSH_USER}/$USER_NAME/g" "$BOOT_CONF"
-    [ -d "$TARGET_HOME" ] && chown -R "$USER_NAME":"$USER_NAME" "$BOOT_DIR"
-fi
+if [ ! -f "$BOOT_CONF" ] || [ "$FINGERPRINT" != "$OLD_FINGERPRINT" ] || [ "$FORCE_UPDATE" = "true" ]; then
+	echo "🔄 检测到配置变更正在同步..."
+	rm -f "$BOOT_CONF"
+	cp "$TEMPLATE" "$BOOT_CONF"
+	sed -i "s/{SSH_USER}/$USER_NAME/g" "$BOOT_CONF"
 
-# --- 5. CF_TOKEN 判断 ---
-if [ -z "$CF_TOKEN" ]; then
-	echo "⚠️ 未发现 CF_TOKEN，禁用 Cloudflared..."
-	sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/' "$BOOT_CONF"
+	if [ -z "$CF_TOKEN" ]; then
+		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/' "$BOOT_CONF"
+	else
+		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^;//' "$BOOT_CONF"
+	fi
+
+	if [ -n "$TTYD" ]; then
+		sed -i "s|-W bash|-c $TTYD -W bash|g" "$BOOT_CONF"
+	fi
+
+	if [ "$TTYD_PORT" != "7681" ]; then
+		sed -i "s|-p 7681|-p $TTYD_PORT|g" "$BOOT_CONF"
+		echo "📡 端口已设为 $TTYD_PORT"
+	fi
+
+	echo "$FINGERPRINT" > "$STATE_FILE"
+	[ -d "$TARGET_HOME" ] && chown -R "$USER_NAME":"$USER_NAME" "$BOOT_DIR"
 else
-	echo "☁️ 发现 CF_TOKEN，激活 Cloudflared."
-	sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^;//' "$BOOT_CONF"
+	echo "😴 配置未变更直接启动"
 fi
 
-if [ -n "$TTYD" ]; then
-	echo "🔐 检测到 TTYD 变量 ($TTYD)，正在开启 Web 终端密码保护..."
-	sed -i "s|-W bash|-c $TTYD -W bash|g" "$BOOT_CONF"
-else
-	echo "🔓 未检测到 TTYD 变量，Web 终端将保持无密码模式。"
-fi
-
-TTYD_PORT=${TTYD_PORT:-7681}
-if [ "$TTYD_PORT" != "7681" ]; then
-	echo "📡 检测到 TTYD_PORT 变量 ($TTYD_PORT)，正在设置 Web 终端监听端口..."
-	sed -i "s|-p 7681|-p $TTYD_PORT|g" "$BOOT_CONF"
-	echo "⚠️ 请使用以下命令运行容器："
-	echo "   docker run -e TTYD_PORT=$TTYD_PORT -p 2222:22 -p $TTYD_PORT:$TTYD_PORT ..."
-fi
-
-# 注入全局别名
 echo "alias sctl='supervisorctl -c $BOOT_CONF'" >> /etc/bash.bashrc
 
 # --- 6. 启动控制 ---
