@@ -85,19 +85,18 @@ if [ ! -f "$BOOT_CONF" ] || [ "$FINGERPRINT" != "$OLD_FINGERPRINT" ] || [ "$FORC
 	cp "$TEMPLATE" "$BOOT_CONF"
 	sed -i "s/{SSH_USER}/$USER_NAME/g" "$BOOT_CONF"
 
+	sed -i "s/{TTYD_PORT}/$TTYD_PORT/g" "$BOOT_CONF"
+
+	if [ -n "$TTYD" ]; then
+		sed -i "s/{TTYD_AUTH}/-c $TTYD/g" "$BOOT_CONF"
+	else
+		sed -i "s/{TTYD_AUTH}//g" "$BOOT_CONF"
+	fi
+
 	if [ -z "$CF_TOKEN" ]; then
 		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/' "$BOOT_CONF"
 	else
 		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^;//' "$BOOT_CONF"
-	fi
-
-	if [ -n "$TTYD" ]; then
-		sed -i "s|-W bash|-c $TTYD -W bash|g" "$BOOT_CONF"
-	fi
-
-	if [ "$TTYD_PORT" != "7681" ]; then
-		sed -i "s|-p 7681|-p $TTYD_PORT|g" "$BOOT_CONF"
-		echo "📡 端口已设为 $TTYD_PORT"
 	fi
 
 	echo "$FINGERPRINT" > "$STATE_FILE"
