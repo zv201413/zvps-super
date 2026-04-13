@@ -3,6 +3,73 @@
 基于 **Ubuntu** 的智能型容器基础镜像。支持通过环境变量动态接管启动进程，结合 **Supervisor** 实现多服务保活、**全自动配置初始化**与持久化存储。
 
 ---
+## 🐳 Docker 方式部署指南
+
+你可以通过 Docker 快速部署并运行 **ZVPS-Super**。根据你的实际需求选择以下启动方式。
+
+### 1. ⚡ 极简启动 (仅 SSH + Web 终端)
+适用于快速测试，不保存数据，容器销毁后配置丢失。
+
+```bash
+docker run -d \
+  --name zvps-super \
+  -e SSH_PWD="your_password" \
+  -p 2222:22 \
+  -p 7681:7681 \
+  zv201413/zvps-super
+```
+### 2. 🚀 全功能启动 (持久化 + 监控 + 隧道)
+
+**推荐方案**：适用于生产或长期使用环境。此配置支持流量统计数据的持久化存储，并通过 Cloudflare Tunnel 实现内网穿透。
+
+```bash
+docker run -d \
+  --name zvps-super \
+  -e SSH_USER="zv" \
+  -e SSH_PWD="your_password" \
+  -e GB=true \
+  -e CF_TOKEN="your_cloudflare_token" \
+  -e TTYD="admin:your_password" \
+  -v /opt/zvps_data:/home/zv \
+  -p 2222:22 \
+  -p 7681:7681 \
+  --restart unless-stopped \
+  zv201413/zvps-super
+```
+### 📝 参数详解 (Configuration)
+
+| 变量/参数 | 示例值 | 类型 | 说明 |
+| :--- | :--- | :--- | :--- |
+| `-e SSH_PWD` | `yourpassword` | **必填** | 设置 SSH 远程登录密码 |
+| `-e SSH_USER` | `zv` | 选填 | 默认为 `zv`。若修改，请务必同步修改挂载路径 |
+| `-e GB` | `true` | 选填 | 是否开启流量监控。开启后可使用 `gb` 指令 |
+| `-e CF_TOKEN` | `your_token` | 选填 | 填入后自动开启 Cloudflare Tunnel 远程访问 |
+| `-e TTYD` | `admin:123` | 选填 | Web 终端认证 (用户名:密码)。不设置则无密码保护 |
+| `-e TTYD_PORT` | `7681` | 选填 | Web 终端监听端口。使用非默认端口时需同步修改宿主机映射 |
+| `-e SSH_CMD` | `""` | 选填 | **留空**：启动 Supervisor 服务管理；**填入**：替代所有服务只执行该命令 |
+| `-v /host:/root` | `/data:/home/zv` | **关键** | **宿主机路径 : 容器家目录**。用于持久化保存配置和流量数据 |
+| `-p 2222:22` | `2222:22` | 端口 | SSH 访问端口 (宿主机端口:容器内22端口) |
+| `-p 7681:7681` | `7681:7681` | 端口 | Web SSH 浏览器访问端口 (可通过浏览器直接操作终端) |
+
+---
+
+### 📡 自定义 Web 终端端口
+
+设置 `TTYD_PORT` 环境变量即可自定义端口：
+
+```bash
+docker run -d \
+  -e SSH_PWD="your_password" \
+  -e TTYD_PORT=9000 \
+  -p 2222:22 \
+  -p 9000:9000 \
+  zv201413/zvps-super
+```
+
+容器启动时会提示正确的 docker run 命令。
+
+---
+
 ## 🛠️ 各种容器平台部署指南
 
 > [!IMPORTANT]
@@ -20,6 +87,7 @@
 | **GB** | `true` | (可选) 开启后自动安装 vnstat，查看使用流量 |
 | **CF_TOKEN** | `your_token` | (可选) 填入则自动激活 Cloudflared 隧道 |
 | **TTYD** | `admin:123` | (可选) Web 终端认证凭据，格式为 `用户名:密码`。不设置则无密码保护 |
+| **TTYD_PORT** | `7681` | (可选) Web 终端监听端口 |
 | **SSH_CMD** | `""` | **留空**：启动 Supervisor 管理；**填入**：则只执行该命令并替代管理服务，此时Supervisor.conf自动失效 |
 
 > [!TIP]
@@ -96,54 +164,6 @@ docker run -d \
   - 自动保存流量统计数据库，确保容器销毁重建后流量记录不清零。
 
 ---
-## 🐳 Docker 方式部署指南
-
-你可以通过 Docker 快速部署并运行 **ZVPS-Super**。根据你的实际需求选择以下启动方式。
-
-### 1. ⚡ 极简启动 (仅 SSH + Web 终端)
-适用于快速测试，不保存数据，容器销毁后配置丢失。
-
-```bash
-docker run -d \
-  --name zvps-super \
-  -e SSH_PWD="your_password" \
-  -p 2222:22 \
-  -p 7681:7681 \
-  zv201413/zvps-super
-```
-### 2. 🚀 全功能启动 (持久化 + 监控 + 隧道)
-
-**推荐方案**：适用于生产或长期使用环境。此配置支持流量统计数据的持久化存储，并通过 Cloudflare Tunnel 实现内网穿透。
-
-```bash
-docker run -d \
-  --name zvps-super \
-  -e SSH_USER="zv" \
-  -e SSH_PWD="your_password" \
-  -e GB=true \
-  -e CF_TOKEN="your_cloudflare_token" \
-  -e TTYD="admin:your_password" \
-  -v /opt/zvps_data:/home/zv \
-  -p 2222:22 \
-  -p 7681:7681 \
-  --restart unless-stopped \
-  zv201413/zvps-super
-```
-### 📝 参数详解 (Configuration)
-
-| 变量/参数 | 示例值 | 类型 | 说明 |
-| :--- | :--- | :--- | :--- |
-| `-e SSH_PWD` | `yourpassword` | **必填** | 设置 SSH 远程登录密码 |
-| `-e SSH_USER` | `zv` | 选填 | 默认为 `zv`。若修改，请务必同步修改挂载路径 |
-| `-e GB` | `true` | 选填 | 是否开启流量监控。开启后可使用 `gb` 指令 |
-| `-e CF_TOKEN` | `your_token` | 选填 | 填入后自动开启 Cloudflare Tunnel 远程访问 |
-| `-e TTYD` | `admin:123` | 选填 | Web 终端认证 (用户名:密码)。不设置则无密码保护 |
-| `-e SSH_CMD` | `""` | 选填 | **留空**：启动 Supervisor 服务管理；**填入**：替代所有服务只执行该命令 |
-| `-v /host:/root` | `/data:/home/zv` | **关键** | **宿主机路径 : 容器家目录**。用于持久化保存配置和流量数据 |
-| `-p 2222:22` | `2222:22` | 端口 | SSH 访问端口 (宿主机端口:容器内22端口) |
-| `-p 7681:7681` | `7681:7681` | 端口 | Web SSH 浏览器访问端口 (可通过浏览器直接操作终端) |
-
----
 
 ## 🔐 远程访问：通过本地 SSH 客户端登录
 
@@ -186,4 +206,4 @@ start /b cloudflared.exe access tcp --hostname 你的域名 --url localhost:2222
 ---
 
 **🤝 鸣谢**
-本项目参考了 [vevc/ubuntu](https://github.com/vevc/ubuntu) 的设计思路，并针对持久化存储挂载逻辑、vnstat 流量统计自动初始化及双显 `gb` 快捷指令进行了深度定制。
+本项目参考了 `vevc/ubuntu` 的设计思路，并针对持久化存储挂载逻辑、vnstat 流量统计自动初始化及双显 `gb` 快捷指令进行了深度定制。
