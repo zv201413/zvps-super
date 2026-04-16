@@ -62,9 +62,93 @@ EOF
     chown "$USER_NAME":"$USER_NAME" "$TARGET_HOME/init_env.sh"
 fi
 
-# --- 4. 智能配置更新 ---
-TTYD_PORT=${TTYD_PORT:-7681}
-FINGERPRINT="USER:$USER_NAME|PORT:$TTYD_PORT|TOKEN:${CF_TOKEN:-none}|TTYD:${TTYD:-none}"
+# --- 4. TTYD 配置解析 ---
+# 格式: TTYD_P1=端口:用户名:密码 (端口默认7681，密码可省略)
+# 向后兼容: TTYD_P1 未设置时使用 TTYD/TTYD_PORT
+
+parse_ttyd() {
+    local var="$1"
+    local default_port="$2"
+    local result
+    
+    if [ -n "$(eval echo \${$var})" ]; then
+        # 有设置 TTYD_P1 或 TTYD_P2
+        local val=$(eval echo \${$var})
+        local port=$(echo "$val" | cut -d: -f1)
+        local user=$(echo "$val" | cut -d: -f2)
+        local pass=$(echo "$val" | cut -d: -f3)
+        
+        if [ -n "$port" ] && [ "$port" != "$val" ]; then
+            # 有端口格式: 端口:user:pass
+            result="PORT:$port"
+            [ -n "$user" ] && [ -n "$pass" ] && result="$result AUTH:-c $user:$pass"
+        elif [ -n "$port" ]; then
+            # 只有端口: 端口
+            result="PORT:$port"
+        else
+            result="PORT:$default_port"
+        fi
+    else
+        # 回退到旧变量
+        if [ "$var" = "TTYD_P1" ]; then
+            [ -n "$TTYD" ] && result="AUTH:-c $TTYD"
+            result="${result:-PORT:$default_port}"
+        else
+            result="PORT:$default_port"
+        fi
+    fi
+    echo "$result"
+}
+
+# 解析 TTYD_P1
+if [ -n "$TTYD_P1" ]; then
+    P1_PORT=$(echo "$TTYD_P1" | cut -d: -f1)
+    P1_USER=$(echo "$TTYD_P1" | cut -d: -f2)
+    P1_PASS=$(echo "$TTYD_P1" | cut -d: -f3)
+    # 如果只有端口没有密码
+    if [ -n "$P1_PORT" ] && [ "$P1_PORT" != "$TTYD_P1" ] && [ -z "$P1_USER" ]; then
+        P1_PORT=$(echo "$TTYD_P1" | cut -d: -f1)
+        P1_AUTH=""
+    elif [ -n "$P1_USER" ] && [ -n "$P1_PASS" ]; then
+        P1_AUTH="-c $P1_USER:$P1_PASS"
+    else
+        P1_AUTH=""
+    fi
+    # 检查端口是否为数字或空
+    if ! echo "$P1_PORT" | grep -qE '^[0-9]+$'; then
+        P1_PORT="7681"
+    fi
+else
+    # 向后兼容旧变量
+    P1_PORT=${TTYD_PORT:-7681}
+    if [ -n "$TTYD" ]; then
+        P1_AUTH="-c $TTYD"
+    else
+        P1_AUTH=""
+    fi
+fi
+
+# 解析 TTYD_P2
+if [ -n "$TTYD_P2" ]; then
+    P2_PORT=$(echo "$TTYD_P2" | cut -d: -f1)
+    P2_USER=$(echo "$TTYD_P2" | cut -d: -f2)
+    P2_PASS=$(echo "$TTYD_P2" | cut -d: -f3)
+    if [ -n "$P2_USER" ] && [ -n "$P2_PASS" ]; then
+        P2_AUTH="-c $P2_USER:$P2_PASS"
+    else
+        P2_AUTH=""
+    fi
+    if ! echo "$P2_PORT" | grep -qE '^[0-9]+$'; then
+        P2_PORT=""
+        P2_AUTH=""
+    fi
+else
+    P2_PORT=""
+    P2_AUTH=""
+fi
+
+# 生成指纹
+FINGERPRINT="USER:$USER_NAME|P1:$P1_PORT|P2:${P2_PORT:-none}|CF:${CF_TOKEN:-none}"
 
 BOOT_DIR="$TARGET_HOME/boot"
 STATE_FILE="$BOOT_DIR/.config_state"
@@ -85,13 +169,16 @@ if [ ! -f "$BOOT_CONF" ] || [ "$FINGERPRINT" != "$OLD_FINGERPRINT" ] || [ "$FORC
 	cp "$TEMPLATE" "$BOOT_CONF"
 	sed -i "s/{SSH_USER}/$USER_NAME/g" "$BOOT_CONF"
 
-	if [ -n "$TTYD" ]; then
-		sed -i "s/{TTYD_AUTH}/-c $TTYD/g" "$BOOT_CONF"
-	else
-		sed -i "s/{TTYD_AUTH}//g" "$BOOT_CONF"
-	fi
+	sed -i "s/{TTYD_P1_PORT}/$P1_PORT/g" "$BOOT_CONF"
+	sed -i "s/{TTYD_P1_AUTH}/$P1_AUTH/g" "$BOOT_CONF"
 
-	sed -i "s/{TTYD_PORT}/$TTYD_PORT/g" "$BOOT_CONF"
+	if [ -n "$P2_PORT" ]; then
+		sed -i 's/^autostart=false/autostart=true/' "$BOOT_CONF"
+		sed -i "s/{TTYD_P2_PORT}/$P2_PORT/g" "$BOOT_CONF"
+		sed -i "s/{TTYD_P2_AUTH}/$P2_AUTH/g" "$BOOT_CONF"
+	else
+		sed -i '/\[program:ttyd2\]/,/autostart/s/^/;/' "$BOOT_CONF"
+	fi
 
 	if [ -z "$CF_TOKEN" ]; then
 		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/' "$BOOT_CONF"
