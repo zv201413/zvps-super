@@ -1,83 +1,107 @@
-# ZVPS-Super
+# 🚀 ZVPS-Super 2026 增强版
 
-基于 Ubuntu 22.04 的智能型增强版容器镜像，集成 SSH、Web 终端、流量监控及自动化保活功能。
-
-## 🌟 核心特色
-
-- ✅ **全自动化配置**：启动时根据环境变量动态生成 Supervisor 与服务配置。
-- ✅ **持久化支持**：支持用户家目录、配置及流量数据的持久化挂载。
-- ✅ **多维保活**：内置 `kpal` 模块，支持自定义参数的定时保活请求。
-- ✅ **流量监控**：内置 `vnstat` 并提供 `gb` 快捷指令查看流量。
-- ✅ **智能更新**：采用 Fingerprint 指纹识别技术，环境变量变更自动重构配置。
-- ⚠️ **挂载校验**：挂载路径必须与 `SSH_USER` 保持严格一致，否则持久化失效。
+基于 **Ubuntu** 的智能型容器基础镜像。支持通过环境变量动态接管启动进程，结合 **Supervisor** 实现多服务保活、**全自动配置初始化**与持久化存储。
 
 ---
 
-## 前期准备
+## 🛠️ 部署方式 (Deployment Methods)
 
-### 获取 Cloudflare Tunnel Token
-1. 在 Cloudflare Zero Trust 控制台创建一个 Tunnel。
-2. 记录 Token 用于环境变量配置。
+你可以根据使用环境选择以下两种并列的部署方式：
 
----
+### A. 🐳 Docker 命令行部署 (Docker CLI)
+适用于本地服务器或具有 Docker 访问权限的 VPS。
 
-## 使用方法
+#### 1. ⚡ 极简启动 (仅 SSH + Web 终端)
+```bash
+docker run -d \
+  --name zvps-super \
+  -e SSH_PWD="your_password" \
+  -p 2222:22 \
+  -p 7681:7681 \
+  zv201413/zvps-super
+```
 
-### 第一步：启动容器 (Docker 示例)
+#### 2. 🚀 全功能启动 (持久化 + 隧道 + 保活)
 ```bash
 docker run -d \
   --name zvps-super \
   -e SSH_USER="zv" \
   -e SSH_PWD="your_password" \
-  -e KPAL="240+60:https://your-url" \
-  -e CF_TOKEN="your_token" \
+  -e GB=true \
+  -e KPAL="240+60:https://your-monitor-url" \
+  -e CF_TOKEN="your_cloudflare_token" \
+  -e TTYD_P1="7681:admin:your_password" \
   -v /opt/zvps_data:/home/zv \
   -p 2222:22 \
+  -p 7681:7681 \
+  --restart unless-stopped \
   zv201413/zvps-super
 ```
 
-### 第二步：配置环境变量
+---
 
-| 变量名称 | 必填 | 说明 |
-|:---|:---:|:---|
-| SSH_PWD | ✅ | SSH 登录密码 |
-| KPAL | ⚠️ | 保活配置 (格式: `随机范围+偏移量:URL`) |
-| CF_TOKEN | ⚠️ | 开启 Cloudflare Tunnel |
-| GB | - | 设置为 `true` 开启流量统计 |
-| TTYD_P1 | - | 自定义 Web 终端 1 (格式: `端口:用户:密码`) |
+### B. ☁️ 容器平台环境变量部署 (Cloud Platforms)
+适用于 Zeabur, Railway, Render 等无直接 Docker 访问权限的平台。
+
+#### 1. 一站式环境配置
+在平台面板添加以下环境变量：
+
+| 变量名 | 示例值 | 说明 |
+| :--- | :--- | :--- |
+| **SSH_USER** | `zv` | SSH 用户名（默认获得最高权限） |
+| **SSH_PWD** | `105106` | SSH 登录密码 |
+| **KPAL** | `240+60:URL` | **(新)** 保活配置。格式：`随机范围+偏移量:目标URL` |
+| **GB** | `true` | (可选) 开启后自动安装 vnstat 流量统计 |
+| **CF_TOKEN** | `your_token` | (可选) 填入则自动激活 Cloudflared 隧道 |
+| **TTYD_P1** | `7681:admin:123` | (可选) 第一个 Web 终端。格式：`端口:用户:密码` |
+| **TTYD_P2** | `80:admin:123` | (可选) 第二个 Web 终端（用于 CF Tunnel 整合） |
+
+#### 2. 挂载持久化存储 (Storage) ⚠️
+**重要：挂载路径必须与 SSH_USER 严格一致！**
+- 若 `SSH_USER` = `root`：挂载到 `/root`
+- 若 `SSH_USER` = `zv`：挂载到 `/home/zv`
 
 ---
 
-## 运行逻辑
+## 📝 参数详解与进阶配置
 
-| 场景 | 行为 |
-|:---|:---|
-| 首次启动 | 自动创建用户、初始化家目录、生成 `init_env.sh` |
-| 环境变量变更 | 识别 Fingerprint 差异，自动重写 `supervisord.conf` |
-| 保活周期 | 每 5 分钟由 `kpal` 触发，带随机延迟访问指定 URL |
-| 终端管理 | 提供 `sctl` (supervisorctl) 快捷管理各进程状态 |
+### 📡 智能保活机制 (KPAL)
+本项目集成了基于 **Supercronic** 的动态保活功能（服务名：`kpal`）。
 
----
+*   **变量格式**：`KPAL=随机范围+偏移量:URL`
+*   **示例**：`KPAL=240+60:https://example.com/status`
+*   **逻辑**：每 5 分钟执行一次，执行前会随机等待 `RANDOM % 240 + 60` 秒。
 
-## 快捷指令说明
+### 📡 自定义 Web 终端 (ttyd)
+设置 `TTYD_P1` 或 `TTYD_P2` 环境变量即可自定义端口和密码。
+*   **格式**: `端口:用户名:密码`（密码可省略）
+*   **安全提示**: 建议始终设置密码以保护终端安全。
 
-| 指令 | 说明 | 示例输出 |
-|:---:|:---|:---|
-| `gb` | 查看流量统计 | `📥 RX: 1.00 GB | 📤 TX: 0.25 GB` |
-| `sctl` | 管理服务进程 | `kpal RUNNING pid 123, uptime 0:05:00` |
-
----
-
-## 常见问题
-
-### Q1: 为什么修改了环境变量配置没变？
-**A**: 容器具备指纹识别功能，如果配置未自动更新，可设置 `FORCE_UPDATE=true` 强制刷新。
-
-### Q2: 如何查看保活状态？
-**A**: 执行 `sctl status kpal` 查看进程，或查看 `/tmp/keepalive.log` 日志。
+### 📡 配合 Cloudflare Tunnel 使用
+设置 `TTYD_P2=80:用户名:密码` 配合 `CF_TOKEN` 使用，可实现 80 端口直接穿透。
+*   **CF 控制台配置**：Public Hostname 选 `HTTP`，URL 填 `localhost:80`。
 
 ---
 
-## 🌟 特别鸣谢
+## 🛠️ 运维与管理
 
-感谢 `vevc/ubuntu` 提供的原始设计参考。
+1.  **流量监控 `gb`**: 开启 `GB=true` 后，在终端输入 `gb` 即可查看双显流量统计。
+2.  **进程管理 `sctl`**: 内置 `sctl` (supervisorctl)，可随时查看或重启服务：
+    ```bash
+    sctl status        # 查看所有进程
+    sctl restart kpal  # 重启保活模块
+    ```
+3.  **配置持久化**: 镜像启动后会在挂载目录下生成 `init_env.sh` (初始化脚本) 和 `boot/supervisord.conf` (服务配置)。修改后执行 `sctl update` 即可。
+
+---
+
+## 🏁 流程总结
+1. **选方法**：使用 Docker 命令行或平台环境变量面板。
+2. **设变量**：配置 SSH、KPAL、CF 等核心变量。
+3. **挂存储**：确保挂载路径与用户名一致。
+4. **收工**：部署成功后，使用 `gb` 查流量，使用 `sctl` 管进程。
+
+---
+
+**🤝 鸣谢**
+本项目参考了 `vevc/ubuntu` 的设计思路，并针对持久化挂载、流量统计、灵活保活机制进行了深度定制。

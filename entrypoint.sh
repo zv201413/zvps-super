@@ -154,18 +154,32 @@ FINGERPRINT="USER:$USER_NAME|P1:$P1_PORT|P2:${P2_PORT:-none}|CF:${CF_TOKEN:-none
 if [ -n "$KPAL" ]; then
     cat > /tmp/keepalive.sh <<'EOF'
 #!/bin/bash
+# 确保从环境读取 KPAL，如果脚本是通过 supercronic 运行的
+KPAL="${KPAL:-}"
 if [ -z "$KPAL" ]; then
   exit 0
 fi
-range_part="${KPAL%%:*}"
-url="${KPAL#*:}"
-range="${range_part%%+*}"
-offset="${range_part#*+}"
+
+# 解析 KPAL 环境变量: 随机范围+偏移量:URL
+# 更加稳健的解析方式
+range_part=$(echo "$KPAL" | cut -d: -f1)
+url=$(echo "$KPAL" | cut -d: -f2-)
+range=$(echo "$range_part" | cut -d+ -f1)
+offset=$(echo "$range_part" | cut -s -d+ -f2)
+
+# 默认值处理
 range=${range:-240}
 offset=${offset:-60}
-sleep $((RANDOM % range + offset))
+
+# 确保是数字
+if ! [[ "$range" =~ ^[0-9]+$ ]]; then range=240; fi
+if ! [[ "$offset" =~ ^[0-9]+$ ]]; then offset=60; fi
+
+sleep_time=$((RANDOM % range + offset))
 status=$(timeout 10 curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Status: $status" >> /tmp/keepalive.log
+
+# 记录日志，包含解析出的参数以便调试
+echo "$(date '+%Y-%m-%d %H:%M:%S') [KPAL] range:$range offset:$offset sleep:$sleep_time URL:$url Status:$status" >> /tmp/keepalive.log
 tail -n 20 /tmp/keepalive.log > /tmp/keepalive.tmp && mv /tmp/keepalive.tmp /tmp/keepalive.log
 EOF
     chmod +x /tmp/keepalive.sh
