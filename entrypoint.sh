@@ -154,38 +154,66 @@ FINGERPRINT="USER:$USER_NAME|P1:$P1_PORT|P2:${P2_PORT:-none}|CF:${CF_TOKEN:-none
 if [ -n "$KPAL" ]; then
     cat > /tmp/keepalive.sh <<'EOF'
 #!/bin/bash
-# 确保从环境读取 KPAL，如果脚本是通过 supercronic 运行的
-KPAL="${KPAL:-}"
+# 从环境读取 KPAL
 if [ -z "$KPAL" ]; then
-  exit 0
+  echo "Error: KPAL environment variable is not set."
+  exit 1
 fi
 
-# 解析 KPAL 环境变量: 随机范围+偏移量:URL
-# 更加稳健的解析方式
-range_part=$(echo "$KPAL" | cut -d: -f1)
-url=$(echo "$KPAL" | cut -d: -f2-)
-range=$(echo "$range_part" | cut -d+ -f1)
-offset=$(echo "$range_part" | cut -s -d+ -f2)
+# 解析 KPAL 环境变量: [RANGE]:[OFFSET]:URL
+# 支持格式: 
+# 1. 300:60:http://...
+# 2. 300::http://... (offset 默认为 60)
+# 3. :60:http://...  (range 默认为 300)
+# 4. http://...      (range=300, offset=60)
+
+if [[ "$KPAL" == *":"*":"* ]]; then
+    # 含有两个或更多冒号
+    range=$(echo "$KPAL" | cut -d: -f1)
+    offset=$(echo "$KPAL" | cut -d: -f2)
+    url=$(echo "$KPAL" | cut -d: -f3-)
+elif [[ "$KPAL" == *":"* ]]; then
+    # 只有一个冒号，视为 RANGE:URL 或 :URL
+    p1=$(echo "$KPAL" | cut -d: -f1)
+    url=$(echo "$KPAL" | cut -d: -f2-)
+    range="${p1:-300}"
+    offset=60
+else
+    # 没有冒号，视为纯 URL
+    url="$KPAL"
+    range=300
+    offset=60
+fi
 
 # 默认值处理
-range=${range:-240}
+range=${range:-300}
 offset=${offset:-60}
 
-# 确保是数字
-if ! [[ "$range" =~ ^[0-9]+$ ]]; then range=240; fi
-if ! [[ "$offset" =~ ^[0-9]+$ ]]; then offset=60; fi
+# 最终检查 URL 是否存在且合法 (以 http 开头)
+if [[ ! "$url" =~ ^http ]]; then
+  echo "❌ Error: URL is missing or invalid in KPAL: $KPAL"
+  echo "💡 Hint: KPAL format should be RANGE:OFFSET:URL"
+  exit 1
+fi
 
-sleep_time=$((RANDOM % range + offset))
-status=$(timeout 10 curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+echo "🚀 Keepalive started for $url (Range: $range, Offset: $offset)"
 
-# 记录日志，包含解析出的参数以便调试
-echo "$(date '+%Y-%m-%d %H:%M:%S') [KPAL] range:$range offset:$offset sleep:$sleep_time URL:$url Status:$status" >> /tmp/keepalive.log
-tail -n 20 /tmp/keepalive.log > /tmp/keepalive.tmp && mv /tmp/keepalive.tmp /tmp/keepalive.log
+while true; do
+  # 确保是大于 0 的数字，防止随机数报错
+  if ! [[ "$range" =~ ^[0-9]+$ ]] || [ "$range" -lt 1 ]; then range=300; fi
+  if ! [[ "$offset" =~ ^[0-9]+$ ]]; then offset=60; fi
+
+  sleep_time=$((RANDOM % range + offset))
+  sleep $sleep_time
+
+  status=$(timeout 10 curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+  
+  # 记录日志
+  echo "$(date '+%Y-%m-%d %H:%M:%S') [KPAL] range:$range offset:$offset sleep:$sleep_time URL:$url Status:$status" >> /tmp/keepalive.log
+  tail -n 20 /tmp/keepalive.log > /tmp/keepalive.tmp && mv /tmp/keepalive.tmp /tmp/keepalive.log
+done
 EOF
     chmod +x /tmp/keepalive.sh
-    cat > /etc/my-crontab <<EOF
-*/5 * * * * /tmp/keepalive.sh
-EOF
 fi
 
 BOOT_DIR="$TARGET_HOME/boot"
