@@ -17,7 +17,9 @@ RUN curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/r
     && dpkg -i cloudflared.deb \
     && rm cloudflared.deb \
     && curl -L https://github.com/tsl0922/ttyd/releases/download/1.7.3/ttyd.x86_64 -o /usr/local/bin/ttyd \
-    && chmod +x /usr/local/bin/ttyd
+    && chmod +x /usr/local/bin/ttyd \
+    && curl -L https://github.com/aptible/supercronic/releases/download/v0.2.44/supercronic-linux-amd64 -o /usr/local/bin/sc \
+    && chmod +x /usr/local/bin/sc
 
 # 4. SSH 环境预处理
 RUN mkdir -p /run/sshd && ssh-keygen -A \

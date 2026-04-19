@@ -148,7 +148,31 @@ else
 fi
 
 # 生成指纹
-FINGERPRINT="USER:$USER_NAME|P1:$P1_PORT|P2:${P2_PORT:-none}|CF:${CF_TOKEN:-none}"
+FINGERPRINT="USER:$USER_NAME|P1:$P1_PORT|P2:${P2_PORT:-none}|CF:${CF_TOKEN:-none}|KPAL:${KPAL:-none}"
+
+# --- 5. 保活脚本生成 ---
+if [ -n "$KPAL" ]; then
+    cat > /tmp/keepalive.sh <<'EOF'
+#!/bin/bash
+if [ -z "$KPAL" ]; then
+  exit 0
+fi
+range_part="${KPAL%%:*}"
+url="${KPAL#*:}"
+range="${range_part%%+*}"
+offset="${range_part#*+}"
+range=${range:-240}
+offset=${offset:-60}
+sleep $((RANDOM % range + offset))
+status=$(timeout 10 curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" 2>/dev/null || echo "000")
+echo "$(date '+%Y-%m-%d %H:%M:%S') - Status: $status" >> /tmp/keepalive.log
+tail -n 20 /tmp/keepalive.log > /tmp/keepalive.tmp && mv /tmp/keepalive.tmp /tmp/keepalive.log
+EOF
+    chmod +x /tmp/keepalive.sh
+    cat > /etc/my-crontab <<EOF
+*/5 * * * * /tmp/keepalive.sh
+EOF
+fi
 
 BOOT_DIR="$TARGET_HOME/boot"
 STATE_FILE="$BOOT_DIR/.config_state"
@@ -184,6 +208,12 @@ if [ ! -f "$BOOT_CONF" ] || [ "$FINGERPRINT" != "$OLD_FINGERPRINT" ] || [ "$FORC
 		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^/;/' "$BOOT_CONF"
 	else
 		sed -i '/\[program:cloudflared\]/,/stdout_logfile/s/^;//' "$BOOT_CONF"
+	fi
+
+	if [ -z "$KPAL" ]; then
+		sed -i '/\[program:kpal\]/,/stderr_logfile/s/^/;/' "$BOOT_CONF"
+	else
+		sed -i '/\[program:kpal\]/,/autostart/s/autostart=false/autostart=true/' "$BOOT_CONF"
 	fi
 
 	echo "$FINGERPRINT" > "$STATE_FILE"
